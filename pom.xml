@@ -4,6 +4,9 @@
 	<groupId>dcfbmailer</groupId>
 	<artifactId>dcfbmailer</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<properties>
+		<docker.target.name>dcfbmailer</docker.target.name>
+	</properties>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 		<plugins>
@@ -21,7 +24,7 @@
 							<outputDirectory>${project.build.directory}</outputDirectory>
 							<resources>
 								<resource>
-									<directory>src/main/docker</directory>
+									<directory>src/mailer</directory>
 									<filtering>true</filtering>
 								</resource>
 							</resources>
@@ -69,6 +72,10 @@
 			<version>1.5</version>
 		</dependency>
 		<dependency>
+			<groupId>org.kohsuke.args4j</groupId>
+			<artifactId>args4j-maven-plugin</artifactId>
+			<version>2.33</version>
+		</dependency>		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>2.5</version>
@@ -78,5 +85,10 @@
     <artifactId>commons-lang3</artifactId>
     <version>3.0</version>
 </dependency>
-	</dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+        </dependency>
+    </dependencies>
 </project>

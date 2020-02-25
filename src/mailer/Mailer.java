@@ -1,21 +1,9 @@
 package mailer;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.StringTokenizer;
-
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -23,26 +11,67 @@ import org.apache.commons.mail.DefaultAuthenticator;
 import org.apache.commons.mail.EmailAttachment;
 import org.apache.commons.mail.EmailException;
 import org.apache.commons.mail.HtmlEmail;
-import org.apache.commons.mail.MultiPartEmail;
-import org.apache.commons.mail.SimpleEmail;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 
 public class Mailer {
-	
+
+	private static class MailerOptions {
+
+		@Option(name = "-u", aliases = "--user", usage = "SMTP UserName", required = true)
+		private String userName;
+		@Option(name = "-p", aliases = "--passwd", usage = "SMTP User's Password", required = true)
+		private String passWord;
+		@Option(name = "-b", aliases = "--body", usage = "File to be used as the email body", required = true)
+		private String body;
+		@Option(name = "-i", aliases = "--input", usage = "CSV Input file for email distribution", required = true)
+		private String inputFile;
+		@Option(name = "-e", aliases = "--encoding", usage = "HTML Encoding to use", required = false)
+		private String encoding="ISO-8859-1";
+		@Option(name = "-a", aliases = "--attachment", usage = "Attachment to Include", required = false)
+		private String attachmentFile="2020_MM_Flyer_promo.pdf";
+		@Option(name = "-d", aliases = "--description", usage = "Description for Attached", required = false)
+		private String attachmentDesc="2020 March Madness Promo";
+		@Option(name = "-s", aliases = "--subject", usage = "Subject of email", required = false)
+		private String subject="MTA 2020 March Madness Basketball Raffle";
+        @Option(name = "-t", aliases = "--test", usage = "Override email with Test Email", required = false)
+        private String testEmail;
+
+	}
+
+	private static MailerOptions opts;
+
 	public static void main(String []args)throws Exception
 	{
-		//TODO Create args list for files, and env var support
-		List<List<String>> theList = Mailer.tokenizeFile("test.csv");
+
+		opts=new MailerOptions();
+		final CmdLineParser parser = new CmdLineParser(opts);
+		try
+		{
+			parser.parseArgument(args);
+		}
+		catch (CmdLineException clEx)
+		{
+			System.out.println("ERROR: Unable to parse command-line options: " + clEx);
+		}
+		List<List<String>> theList = Mailer.tokenizeFile(opts.inputFile);
 		for (List<String> s: theList) {
 			String email = prepareEmail(s);
 			sendEmail(email, s.get(1));
 		}
-				
 	}
+
+
+	
+	private static String theFile = null;
+	
 
 	public static String prepareEmail(List<String> s) throws IOException {
 		
-		String theFile = FileUtils.readFileToString(new File("test.html"),"ISO-8859-1");
+		theFile = FileUtils.readFileToString(new File(opts.body),opts.encoding);
+		
 		System.out.println(s.get(0));
 		//Lame, but pretty sure its unique
 		theFile = StringUtils.replace(theFile, "ReplaceMeSalesmen", s.get(0) );
@@ -56,10 +85,10 @@ public class Mailer {
 	{
 		  // Create the attachment
 		  EmailAttachment attachment = new EmailAttachment();
-		  attachment.setPath("./Raffle_Sample_Letter_2017.docx");
+		  attachment.setPath("./"+opts.attachmentFile);
 		  attachment.setDisposition(EmailAttachment.ATTACHMENT);
-		  attachment.setDescription("MTA Pro Football Sample Letter");
-		  attachment.setName("Raffle_Sample_Letter_2017.docx");
+		  attachment.setDescription(opts.attachmentDesc);
+		  attachment.setName(opts.attachmentFile);
 
 		  // Create the email message
 		  HtmlEmail email = new HtmlEmail();
@@ -67,16 +96,18 @@ public class Mailer {
 		  //email.set
 		  email.setHostName("smtp.gmail.com");
 		  email.setSmtpPort(587);
-		  email.setAuthenticator(new DefaultAuthenticator("mtadadsclubraffle@gmail.com", "Madison15"));
+		  email.setAuthenticator(new DefaultAuthenticator(opts.userName, opts.passWord));
 		  email.setStartTLSEnabled(true);
-		  // TODO add test mode with env var -- email.addTo("christophercoy@cox.net");
+		  //Use the Test email if present
+		  recpt=opts.testEmail==null?recpt:opts.testEmail;
 		  email.addTo(recpt);
 		  email.addBcc("chrisccoy@gmail.com", "Chris Coy");
 		  email.addBcc("pattess@gmail.com", "Patrick");
 		 
 		  email.setFrom("mtadadsclubraffle@gmail.com", "Dads Raffle");
-		  email.setSubject("MTA 2017 Pro Football Raffle");
-		  email.setMsg(theMail);
+		  email.setSubject(opts.subject);
+		  email.setHtmlMsg(theMail);
+		  save(theMail);
 
 		//  add the attachment
 		  email.attach(attachment);
@@ -84,6 +115,27 @@ public class Mailer {
 		  // send the email
 		  email.send();		
 	}
+
+	private static void save(String theMail) {
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter("wtf.html"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			writer.write(theMail);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		try {
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public static String prepareEmail(String template, List<String> toks)
 	{
 		String name = toks.get(0);
@@ -108,40 +160,5 @@ public class Mailer {
         }
 		return listOfToks;
 	}
-	public static void test2() throws Exception {
-		final String username = "mtadadsclubraffle@gmail.com";
-		final String password = "Madison15";
 
-		Properties props = new Properties();
-		props.put("mail.smtp.auth", "true");
-		props.put("mail.smtp.starttls.enable", "true");
-		props.put("mail.smtp.host", "smtp.gmail.com");
-		props.put("mail.smtp.port", "587");
-
-		Session session = Session.getInstance(props,
-		  new javax.mail.Authenticator() {
-			protected PasswordAuthentication getPasswordAuthentication() {
-				return new PasswordAuthentication(username, password);
-			}
-		  });
-
-		try {
-
-			Message message = new MimeMessage(session);
-			message.setFrom(new InternetAddress("christophercoy@cox.net"));
-			message.setRecipients(Message.RecipientType.TO,
-				InternetAddress.parse("chrisccoy@gmail.com"));
-			message.setSubject("Testing Subject");
-			message.setText("Dear Mail Crawler,"
-				+ "\n\n No spam to my email, please!");
-
-			Transport.send(message);
-
-			System.out.println("Done");
-
-		} catch (MessagingException e) {
-			e.printStackTrace();
-		}
-	}
-	
 }
